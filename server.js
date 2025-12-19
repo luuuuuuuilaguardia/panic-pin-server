@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const https = require('https');
+const http = require('http');
 
 const User = require('./models/User');
 const Authority = require('./models/Authority');
@@ -285,7 +287,26 @@ app.get("/analytics/dashboard", async (req, res) => {
     }
 });
 
+app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`MongoDB URI: ${MONGODB_URI}`);
+    
+    const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+    
+    setInterval(() => {
+        const protocol = SERVER_URL.startsWith('https') ? https : http;
+        const url = `${SERVER_URL}/health`;
+        
+        protocol.get(url, (res) => {
+            if (res.statusCode === 200) {
+                console.log('Keep-alive ping successful');
+            }
+        }).on('error', (err) => {
+            console.error('Keep-alive ping failed:', err.message);
+        });
+    }, 14 * 60 * 1000);
 });
